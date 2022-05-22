@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+# Tor経由でスクレイピング
+
+import os.path
+import subprocess
+from subprocess import PIPE
+from time import sleep
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# 設定
+PROXY = "socks5://localhost:9050"   # Torのデフォルトポート
+
+# Seleniumをあらゆる環境で起動させるChromeオプション
+options = Options()
+options.add_argument('--disable-gpu')
+options.add_argument('--disable-extensions')
+options.add_argument('--proxy-server=%s' % PROXY)
+options.add_argument('--start-maximized')
+
+# ダウンロードのデフォルト先を変更している
+# 不要であればコメントアウトしても問題ない
+DOWNLOAD_DIR = os.path.expanduser('~/Downloads')
+prefs = {
+   "download.default_directory": DOWNLOAD_DIR
+}
+options.add_experimental_option("prefs", prefs)
+
+tor = None      # torプロセス変数
+driver = None   # web-driver変数
+
+try:
+    # torの起動
+    tor = subprocess.Popen(["tor"], shell=True, stdout=PIPE, stderr=PIPE)
+
+    # ブラウザの起動。ここではChromeを起動している
+    driver = webdriver.Chrome(ChromeDriverManager().install(),
+                              chrome_options=options)
+
+    # 待機用
+    wait = WebDriverWait(driver=driver, timeout=30)
+
+    # 起動画面をtorプロジェクトのトップページ
+    driver.get('https://check.torproject.org')
+
+    # 全て読み込むまで待つ
+    wait.until(EC.presence_of_all_elements_located)
+
+    # Torの確認
+    # Tor経由のアクセスしているとTitleタグが congratulations となる
+    if "congratulations" in driver.title.lower():
+        print("torが有効です")
+
+        # とりあえず DuckDuckGo を開く
+        driver.get('https://duckduckgo.com')
+
+        # TODO: ここでスクレイピングする
+        # とりま、一旦1日開きっぱなし
+        sleep(60*60*24)
+    else:
+        # もしTorがうまく動作していない場合はエラーで中断
+        # Torの起動に失敗した場合、そもそもプロキシの設定でエラーとなるのでここまでこないはず
+        raise Exception("torが有効ではありません")
+except Exception as e:
+    print(e)
+    print("エラーが発生しました。")
+    if driver is not None:
+        driver.close()
+        driver.quit()
+finally:
+    # torプロセスを終了させる
+    if tor is not None:
+        tor.kill()

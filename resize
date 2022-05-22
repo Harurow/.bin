@@ -1,0 +1,12 @@
+#!/bin/sh
+
+APP_NAME=$1
+X=8
+Y=61
+W=$(( $2 + $X + 0 ))
+H=$(( $3 + $Y + 0 ))
+
+osascript \
+-e "tell application \"$APP_NAME\"" \
+-e "set bounds of front window to {$X, $Y, $W, $H}" \
+-e "end tell"
